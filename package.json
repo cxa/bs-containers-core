@@ -1,0 +1,18 @@
+{
+  "name": "bs-containers-core",
+  "version": "1.2.0",
+  "description": "OCaml-containers core for BuckleScript",
+  "main": "index.js",
+  "scripts": {
+    "start": "bsb -make-world -w"
+  },
+  "author": "CHEN Xian-an<xianan.chen@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cxa/bs-containers-core.git"
+  },
+  "license": "BSD",
+  "devDependencies": {
+    "bs-platform": "^1.7.3"
+  }
+}
