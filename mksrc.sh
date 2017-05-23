@@ -9,6 +9,7 @@ cp src/core/*.ml ../src
 cp src/core/*.mli ../src
 cd ../src
 rm *Labels.ml* # which bsb can not compile
+rm *.cppo.ml*
 sed -i '' "/Labels/d" containers.ml
 echo "Copying LICENSE..."
 cp ../ocaml-containers/LICENSE ./

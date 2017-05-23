@@ -1,6 +1,6 @@
 {
   "name": "bs-containers-core",
-  "version": "1.2.0",
+  "version": "1.2.0-1",
   "description": "OCaml-containers core for BuckleScript",
   "main": "index.js",
   "scripts": {
