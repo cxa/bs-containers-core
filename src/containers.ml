@@ -20,7 +20,6 @@ module Fun = CCFun
 module Hash = CCHash
 module Int = CCInt
 module Int64 = CCInt64
-module IO = CCIO
 
 (** @since 0.14 *)
 module Hashtbl = struct
