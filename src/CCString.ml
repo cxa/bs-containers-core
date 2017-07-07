@@ -38,7 +38,9 @@ let compare = String.compare
 
 let hash s = Hashtbl.hash s
 
+
 let init = String.init
+
 
 let length = String.length
 
@@ -577,10 +579,14 @@ let set s i c =
 
 let iter = String.iter
 
+
 let map = String.map
 let iteri = String.iteri
 
+
+
 let mapi = String.mapi
+
 
 let filter_map f s =
   let buf = Buffer.create (String.length s) in
@@ -670,6 +676,8 @@ let exists2 p s1 s2 =
 
     (** {2 Ascii functions} *)
 
+
+  
   let capitalize_ascii s =
     mapi
       (fun i c -> if i=0 then CCChar.uppercase_ascii c else c)
@@ -684,6 +692,7 @@ let uncapitalize_ascii s =
 let uppercase_ascii = map CCChar.uppercase_ascii
 
 let lowercase_ascii = map CCChar.lowercase_ascii
+
 
 let equal_caseless s1 s2: bool =
   let char_lower c =

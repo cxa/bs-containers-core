@@ -21,4 +21,4 @@ Add `bs-containers-core` to your project's dependencies by `yarn` or `npm`, And 
 
 ## Development
 
-Run `sh mksrc.sh`.
+Under OCaml 4.02.3, run `sh mksrc.sh`.
