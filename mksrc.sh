@@ -3,7 +3,7 @@
 echo "Checking out ocaml-container..."
 git submodule update --init
 cd ocaml-containers
-git checkout 1.3
+git checkout 1.4
 echo "Making..."
 make
 echo "Copying sources..."
