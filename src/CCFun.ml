@@ -3,15 +3,17 @@
 
 (** {1 Basic Functions} *)
 
+(* default implem for some operators *)
 
-external (|>) : 'a -> ('a -> 'b) -> 'b = "%revapply"
-external (@@) : ('a -> 'b) -> 'a -> 'b = "%apply"
+let (|>) x f = f x
+let (@@) f x = f x
 
+let opaque_identity x = x
 
+(* import standard implementations, if any *)
 
-  
-  let opaque_identity x = x
-
+include Sys
+include Pervasives
 
 let compose f g x = g (f x)
 
