@@ -3,6 +3,103 @@
 
 (** {1 Very Simple Parser Combinators} *)
 
+(*$inject
+  module T = struct
+    type tree = L of int | N of tree * tree
+  end
+  open T
+  open Result
+
+  let mk_leaf x = L x
+  let mk_node x y = N(x,y)
+
+  let ptree = fix @@ fun self ->
+    skip_space *>
+    ( (try_ (char '(') *> (pure mk_node <*> self <*> self) <* char ')')
+      <|>
+      (U.int >|= mk_leaf) )
+
+  let ptree' = fix_memo @@ fun self ->
+    skip_space *>
+    ( (try_ (char '(') *> (pure mk_node <*> self <*> self) <* char ')')
+      <|>
+      (U.int >|= mk_leaf) )
+
+  let rec pptree = function
+    | N (a,b) -> Printf.sprintf "N (%s, %s)" (pptree a) (pptree b)
+    | L x -> Printf.sprintf "L %d" x
+
+  let errpptree = function
+    | Ok x -> "Ok " ^ pptree x
+    | Error s -> "Error " ^ s
+*)
+
+(*$= & ~printer:errpptree
+  (Ok (N (L 1, N (L 2, L 3)))) \
+    (parse_string ptree "(1 (2 3))" )
+  (Ok (N (N (L 1, L 2), N (L 3, N (L 4, L 5))))) \
+    (parse_string ptree "((1 2) (3 (4 5)))" )
+  (Ok (N (L 1, N (L 2, L 3)))) \
+    (parse_string ptree' "(1 (2 3))" )
+  (Ok (N (N (L 1, L 2), N (L 3, N (L 4, L 5))))) \
+    (parse_string ptree' "((1 2) (3 (4 5)))" )
+*)
+
+(*$R
+  let p = U.list ~sep:"," U.word in
+  let printer = function
+    | Ok l -> "Ok " ^ CCFormat.(to_string (list string)) l
+    | Error s -> "Error " ^ s
+  in
+  assert_equal ~printer
+    (Ok ["abc"; "de"; "hello"; "world"])
+    (parse_string p "[abc , de, hello ,world  ]");
+*)
+
+(*$R
+  let test n =
+    let p = CCParse.(U.list ~sep:"," U.int) in
+
+    let l = CCList.(1 -- n) in
+    let l_printed =
+      CCFormat.(to_string (within "[" "]" (list ~sep:(return ",") int))) l in
+
+    let l' = CCParse.parse_string_exn p l_printed in
+
+    assert_equal ~printer:Q.Print.(list int) l l'
+  in
+  test 100_000;
+  test 400_000;
+
+*)
+
+(*$R
+  let open CCParse.Infix in
+  let module P = CCParse in
+
+  let parens p = P.try_ (P.char '(') *> p <* P.char ')' in
+  let add = P.char '+' *> P.return (+) in
+  let sub = P.char '-' *> P.return (-) in
+  let mul = P.char '*' *> P.return ( * ) in
+  let div = P.char '/' *> P.return ( / ) in
+  let integer =
+  P.chars1_if (function '0'..'9'->true|_->false) >|= int_of_string in
+
+  let chainl1 e op =
+  P.fix (fun r ->
+    e >>= fun x -> P.try_ (op <*> P.return x <*> r) <|> P.return x) in
+
+  let expr : int P.t =
+  P.fix (fun expr ->
+    let factor = parens expr <|> integer in
+    let term = chainl1 factor (mul <|> div) in
+    chainl1 term (add <|> sub)) in
+
+  assert_equal (Ok 6) (P.parse_string expr "4*1+2");
+  assert_equal (Ok 12) (P.parse_string expr "4*(1+2)");
+  ()
+*)
+
 type 'a or_error = ('a, string) Result.result
 
 type line_num = int
@@ -42,6 +139,9 @@ type state = {
 }
 
 exception ParseError of parse_branch * (unit -> string)
+
+let char_equal (a : char) b = Pervasives.(=) a b
+let string_equal (a : string) b = Pervasives.(=) a b
 
 let rec string_of_branch l =
   let pp_s () = function
@@ -83,11 +183,11 @@ let fail_ ~err st msg =
 
 let next st ~ok ~err =
   if st.i = String.length st.str
-  then fail_ st ~err (const_ "unexpected end of input")
+  then fail_ ~err st (const_ "unexpected end of input")
   else (
     let c = st.str.[st.i] in
     st.i <- st.i + 1;
-    if c='\n'
+    if char_equal c '\n'
     then (st.lnum <- st.lnum + 1; st.cnum <- 1)
     else st.cnum <- st.cnum + 1;
     ok c
@@ -107,24 +207,24 @@ type 'a t = state -> ok:('a -> unit) -> err:(exn -> unit) -> unit
 let return : 'a -> 'a t = fun x _st ~ok ~err:_ -> ok x
 let pure = return
 let (>|=) : 'a t -> ('a -> 'b) -> 'b t
-  = fun p f st ~ok ~err -> p st ~err ~ok:(fun x -> ok (f x))
+  = fun p f st ~ok ~err -> p st ~ok:(fun x -> ok (f x)) ~err
 let (>>=) : 'a t -> ('a -> 'b t) -> 'b t
-  = fun p f st ~ok ~err -> p st ~err ~ok:(fun x -> f x st ~err ~ok)
+  = fun p f st ~ok ~err -> p st ~ok:(fun x -> f x st ~ok ~err) ~err
 let (<*>) : ('a -> 'b) t -> 'a t -> 'b t
   = fun f x st ~ok ~err ->
-    f st ~err ~ok:(fun f' -> x st ~err ~ok:(fun x' -> ok (f' x')))
+    f st ~ok:(fun f' -> x st ~ok:(fun x' -> ok (f' x')) ~err) ~err
 let (<* ) : 'a t -> _ t -> 'a t
   = fun x y st ~ok ~err ->
-    x st ~err ~ok:(fun res -> y st ~err ~ok:(fun _ -> ok res))
+    x st ~ok:(fun res -> y st ~ok:(fun _ -> ok res) ~err) ~err
 let ( *>) : _ t -> 'a t -> 'a t
   = fun x y st ~ok ~err ->
-    x st ~err ~ok:(fun _ -> y st ~err ~ok)
+    x st ~ok:(fun _ -> y st ~ok ~err) ~err
 
 let map f x = x >|= f
 let map2 f x y = pure f <*> x <*> y
 let map3 f x y z = pure f <*> x <*> y <*> z
 
-let junk_ st = next st ~err:(fun _ -> assert false) ~ok:ignore
+let junk_ st = next st ~ok:ignore ~err:(fun _ -> assert false)
 
 let eoi st ~ok ~err =
   if is_done st
@@ -145,15 +245,15 @@ let nop _ ~ok ~err:_ = ok()
 let char c =
   let msg = Printf.sprintf "expected '%c'" c in
   fun st ~ok ~err ->
-    next st ~err
-      ~ok:(fun c' -> if c=c' then ok c else fail_ ~err st (const_ msg))
+    next st
+      ~ok:(fun c' -> if char_equal c c' then ok c else fail_ ~err st (const_ msg)) ~err
 
 let char_if p st ~ok ~err =
-  next st ~err
+  next st
     ~ok:(fun c ->
       if p c then ok c
       else fail_ ~err st (fun () -> Printf.sprintf "unexpected char '%c'" c)
-    )
+    ) ~err
 
 let chars_if p st ~ok ~err:_ =
   let i = st.i in
@@ -162,11 +262,12 @@ let chars_if p st ~ok ~err:_ =
   ok (String.sub st.str i !len)
 
 let chars1_if p st ~ok ~err =
-  chars_if p st ~err
+  chars_if p st
     ~ok:(fun s ->
-      if s = ""
+      if string_equal s ""
       then fail_ ~err st (const_ "unexpected sequence of chars")
       else ok s)
+    ~err
 
 let rec skip_chars p st ~ok ~err =
   if not (is_done st) && p (cur st) then (
@@ -188,10 +289,11 @@ let space = char_if is_space
 let white = char_if is_white
 
 let endline st ~ok ~err =
-  next st ~err
+  next st
     ~ok:(function
       | '\n' as c -> ok c
       | _ -> fail_ ~err st (const_ "expected end-of-line"))
+    ~err
 
 let skip_space = skip_chars is_space
 let skip_white = skip_chars is_white
@@ -229,32 +331,33 @@ let string s st ~ok ~err =
   let rec check i =
     if i = String.length s then ok s
     else
-      next st ~err
+      next st
         ~ok:(fun c ->
-          if c = s.[i]
+          if char_equal c s.[i]
           then check (i+1)
           else fail_ ~err st (fun () -> Printf.sprintf "expected \"%s\"" s))
+        ~err
   in
   check 0
 
 let rec many_rec : 'a t -> 'a list -> 'a list t = fun p acc st ~ok ~err ->
   if is_done st then ok(List.rev acc)
   else
-    p st ~err
+    p st
       ~ok:(fun x ->
         let i = pos st in
         many_rec p (x :: acc) st ~ok
           ~err:(fun _ ->
             backtrack st i;
             ok(List.rev acc))
-      )
+      ) ~err
 
 let many : 'a t -> 'a list t
   = fun p st ~ok ~err -> many_rec p [] st ~ok ~err
 
 let many1 : 'a t -> 'a list t =
   fun p st ~ok ~err ->
-    p st ~err ~ok:(fun x -> many_rec p [x] st ~err ~ok)
+    p st ~ok:(fun x -> many_rec p [x] st ~ok ~err) ~err
 
 let rec skip p st ~ok ~err =
   let i = pos st in
@@ -303,12 +406,12 @@ let memo (type a) (p:a t):a t =
     with Not_found ->
       (* parse, and save *)
       p st
-        ~err:(fun e ->
-          MemoTbl.H.replace tbl (i,id) (fun () -> r := Some (MemoTbl.Fail e));
-          err e)
         ~ok:(fun x ->
           MemoTbl.H.replace tbl (i,id) (fun () -> r := Some (MemoTbl.Ok x));
           ok x)
+        ~err:(fun e ->
+          MemoTbl.H.replace tbl (i,id) (fun () -> r := Some (MemoTbl.Fail e));
+          err e)
 
 let fix_memo f =
   let rec p =
@@ -386,7 +489,7 @@ module U = struct
       skip_white <* string stop
 
   let int =
-    chars1_if (fun c -> is_num c || c='-')
+    chars1_if (fun c -> is_num c || char_equal c '-')
     >>= fun s ->
     try return (int_of_string s)
     with Failure _ -> fail "expected an int"
