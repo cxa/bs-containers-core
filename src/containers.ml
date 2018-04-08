@@ -26,9 +26,11 @@ module Hashtbl = struct
 end
 module Heap = CCHeap
 module Int = CCInt
+module Int32 = CCInt32
 module Int64 = CCInt64
 module List = CCList
 module Map = CCMap
+module Nativeint = CCNativeint
 module Option = CCOpt
 module Ord = CCOrd
 module Pair = CCPair
@@ -40,5 +42,6 @@ module Set = CCSet
 module String = CCString
 module Vector = CCVector
 module Monomorphic = CCMonomorphic
+module Utf8_string = CCUtf8_string
 
 include Monomorphic
