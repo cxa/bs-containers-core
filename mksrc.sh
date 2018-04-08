@@ -13,7 +13,9 @@ cp _build/default/src/core/*.ml ../src
 cp _build/default/src/core/*.mli ../src
 cp _build/default/src/monomorphic/*.ml ../src
 cp _build/default/src/monomorphic/*.mli ../src
-cd ../src
+cd ../uchar/src
+cp uchar.ml* ../../src
+cd ../../src
 cp ../result.ml ./
 rm *.cppo.ml
 rm *Labels.ml*
