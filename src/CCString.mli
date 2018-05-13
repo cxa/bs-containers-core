@@ -1,10 +1,7 @@
 
 (* This file is free software, part of containers. See file "license" for more details. *)
 
-(** {1 Basic String Utils}
-
-    Consider using {!Containers_string.KMP} for pattern search, or Regex
-    libraries. *)
+(** {1 Basic String Utils} *)
 
 type 'a gen = unit -> 'a option
 type 'a sequence = ('a -> unit) -> unit
@@ -138,9 +135,9 @@ val replace : ?which:[`Left|`Right|`All] -> sub:string -> by:string -> string ->
 (** [replace ~sub ~by s] replaces some occurrences of [sub] by [by] in [s].
     @param which decides whether the occurrences to replace are:
       {ul
-        {- [`Left] first occurrence from the left (beginning)}
-        {- [`Right] first occurrence from the right (end)}
-        {- [`All] all occurrences (default)}
+        {- [`Left] first occurrence from the left (beginning).}
+        {- [`Right] first occurrence from the right (end).}
+        {- [`All] all occurrences (default).}
       }
     @raise Invalid_argument if [sub = ""].
     @since 0.14 *)
@@ -249,6 +246,16 @@ val exists : (char -> bool) -> string -> bool
 
 include S with type t := string
 
+val drop_while : (char -> bool) -> t -> t
+(** [drop_while f s] discards any characters starting from the left,
+    up to the first character [c] not satisfying [f c].
+    @since 2.2 *)
+
+val rdrop_while : (char -> bool) -> t -> t
+(** [rdrop_while f s] discards any characters starting from the right,
+    up to the first character [c] not satisfying [f c].
+    @since 2.2 *)
+
 val ltrim : t -> t
 (** Trim space on the left (see {!String.trim} for more details).
     @since 1.2 *)
@@ -295,16 +302,20 @@ val exists2 : (char -> char -> bool) -> string -> string -> bool
     a stable alias for them even in older versions. *)
 
 val capitalize_ascii : string -> string
-(** See {!String}. @since 0.18 *)
+(** See {!String}.
+    @since 0.18 *)
 
 val uncapitalize_ascii : string -> string
-(** See {!String}. @since 0.18 *)
+(** See {!String}.
+    @since 0.18 *)
 
 val uppercase_ascii : string -> string
-(** See {!String}. @since 0.18 *)
+(** See {!String}.
+    @since 0.18 *)
 
 val lowercase_ascii : string -> string
-(** See {!String}. @since 0.18 *)
+(** See {!String}.
+    @since 0.18 *)
 
 val equal_caseless : string -> string -> bool
 (** Comparison without respect to {b ascii} lowercase.
@@ -370,7 +381,7 @@ module Split : sig
 
   val klist : ?drop:drop_if_empty -> by:string -> string -> (string*int*int) klist
 
-  (** {6 Copying functions}
+  (** {4 Copying functions}
 
       Those split functions actually copy the substrings, which can be
       more convenient but less efficient in general. *)
@@ -416,7 +427,7 @@ val split : by:string -> string -> string list
 (** {2 Utils} *)
 
 val compare_versions : string -> string -> int
-(** [compare_versions a b] compares {i version strings} [a] and [b],
+(** [compare_versions a b] compares {i version strings} [ a] and [b],
     considering that numbers are above text.
     @since 0.13 *)
 
@@ -430,7 +441,9 @@ val edit_distance : string -> string -> int
     distance axioms: it is always positive, symmetric, and satisfies
     the formula [distance a b + distance b c >= distance a c]. *)
 
-(** {2 Slices} A contiguous part of a string *)
+(** {2 Slices}
+
+    A contiguous part of a string *)
 
 module Sub : sig
   type t = string * int * int

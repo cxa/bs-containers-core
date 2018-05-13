@@ -101,7 +101,7 @@ val pure : 'a -> 'a t
 (** Alias to {!return}. *)
 
 val (<*>) : ('a -> 'b) t -> 'a t -> 'b t
-(** [f <$> (Some x)] returns [Some (f x)] and [f <$> None] returns [None]. *)
+(** [f <*> (Some x)] returns [Some (f x)] and [f <*> None] returns [None]. *)
 
 val (<$>) : ('a -> 'b) -> 'a t -> 'b t
 (** Like [map].  *)
@@ -122,6 +122,16 @@ val (<+>) : 'a t -> 'a t -> 'a t
 val choice : 'a t list -> 'a t
 (** [choice] returns the first non-[None] element of the list, or [None]. *)
 
+val flatten : 'a t t -> 'a t
+(** [flatten] transforms [Some x] into [x].
+    @since 2.2 *)
+
+val return_if : bool -> 'a -> 'a t
+(** Apply [Some] or [None] depending on a boolean.
+    More precisely, [return_if false x] is [None],
+    and [return_if true x] is [Some x].
+    @since 2.2 *)
+
 (** {2 Infix Operators}
     @since 0.16 *)
 
@@ -133,7 +143,7 @@ module Infix : sig
   (** Monadic bind. *)
 
   val (<*>) : ('a -> 'b) t -> 'a t -> 'b t
-  (** [f <$> (Some x)] returns [Some (f x)] and [f <$> None] returns [None]. *)
+  (** [f <*> (Some x)] returns [Some (f x)] and [f <*> None] returns [None]. *)
 
   val (<$>) : ('a -> 'b) -> 'a t -> 'b t
   (** Like [map].  *)
