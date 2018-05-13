@@ -17,12 +17,12 @@ cd ../uchar/src
 cp uchar.ml* ../../src
 cd ../../src
 cp ../result.ml ./
-rm *.cppo.ml
 rm *Labels.ml*
 rm CCIO.ml* # not needed
-for i in *.ml; do sed -i '' "/# /d" $i; done #Delete cppo lines
-sed -i '' "/IO/d" containers.ml
-sed -i '' "/Labels/d" containers.ml
+for i in *.ml; do sed -i.bak "/# /d" $i; done #Delete cppo lines
+sed -i.bak "/IO/d" containers.ml
+sed -i.bak "/Labels/d" containers.ml
 echo "Copying LICENSE..."
+rm *.bak
 cp ../ocaml-containers/LICENSE ./
 echo "Done."
