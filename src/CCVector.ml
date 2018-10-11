@@ -87,11 +87,11 @@ let resize_ v newcapacity =
 
 (* grow the array, using [x] as a filler if required *)
 let grow_with_ v ~filler:x =
-  if array_is_empty_ v
-  then v.vec <- Array.make 32 x
-  else (
+  if array_is_empty_ v then (
+    v.vec <- Array.make 4 x
+  ) else (
     let n = Array.length v.vec in
-    let size = min (2 * n + 10) Sys.max_array_length in
+    let size = min (2 * n + 3) Sys.max_array_length in
     if size = n then failwith "vec: can't grow any further";
     resize_ v size
   )
@@ -104,20 +104,22 @@ let ensure_assuming_not_empty_ v ~size =
   if size > Sys.max_array_length
   then failwith "vec.ensure: size too big"
   else (
-    let n = ref (max 16 (Array.length v.vec)) in
+    let n = ref (max 8 (Array.length v.vec)) in
     while !n < size do n := min Sys.max_array_length (2* !n) done;
     resize_ v !n
   )
 
 let ensure_with ~init v size =
-  if Array.length v.vec = 0
-  then v.vec <- Array.make size init
-  else ensure_assuming_not_empty_ v ~size
+  if Array.length v.vec = 0 then (
+    v.vec <- Array.make size init
+  ) else (
+    ensure_assuming_not_empty_ v ~size
+  )
 
 let ensure v size =
-  if Array.length v.vec = 0
-  then ()
-  else ensure_assuming_not_empty_  v ~size
+  if Array.length v.vec > 0 then (
+    ensure_assuming_not_empty_  v ~size
+  )
 
 let clear v =
   v.size <- 0
@@ -293,15 +295,30 @@ let equal eq v1 v2 =
     equal (=) (of_list l1) (of_list l2) = (l1=l2))
 *)
 
+(*$QR
+  Q.(pair (small_list small_int)(small_list small_int)) (fun (l1,l2) ->
+    let v1 = of_list l1 in
+    let v2 = of_list l2 in
+    equal (=) v1 v2 = (l1=l2))
+*)
+
 let compare cmp v1 v2 =
   let n = min v1.size v2.size in
   let rec check i =
     if i = n
     then compare v1.size v2.size
-    else
+    else (
       let c = cmp (get v1 i) (get v2 i) in
       if c = 0 then check (i+1) else c
+    )
   in check 0
+
+(*$QR
+  Q.(pair (small_list small_int)(small_list small_int)) (fun (l1,l2) ->
+    let v1 = of_list l1 in
+    let v2 = of_list l2 in
+    compare Pervasives.compare v1 v2 = CCList.compare Pervasives.compare l1 l2)
+*)
 
 exception Empty
 
@@ -347,6 +364,13 @@ let copy v = {
   clear v';
   OUnit.assert_bool "empty" (is_empty v');
   OUnit.assert_bool "not_empty" (not (is_empty v));
+*)
+
+(*$QR
+  Q.(small_list small_int) (fun l ->
+    let v = of_list l in
+    let v' = copy v in
+    equal (=) v v')
 *)
 
 let shrink v n =
@@ -422,13 +446,22 @@ let uniq_sort cmp v =
   uniq_sort Pervasives.compare v; to_list v = [1;2;3;4;5]
 *)
 
+(*$QR & ~long_factor:10
+  Q.(small_list small_int) (fun l ->
+    let v = of_list l in
+    uniq_sort Pervasives.compare v;
+    to_list v = (CCList.sort_uniq ~cmp:Pervasives.compare l))
+*)
+
 let iter k v =
-  for i = 0 to v.size -1 do
+  let n = v.size in
+  for i = 0 to n-1 do
     k (Array.unsafe_get v.vec i)
   done
 
 let iteri k v =
-  for i = 0 to v.size -1 do
+  let n = v.size in
+  for i = 0 to n-1 do
     k i (Array.unsafe_get v.vec i)
   done
 
@@ -448,6 +481,24 @@ let map f v =
 (*$T
   let v = create() in push v 1; push v 2; push v 3; \
   to_list (map string_of_int v) = ["1"; "2"; "3"]
+*)
+
+(*$QR
+  Q.(pair (fun1 Observable.int small_int) (small_list small_int)) (fun (Q.Fun (_,f),l) ->
+    let v = of_list l in
+    to_list (map f v) = List.map f l)
+*)
+
+let map_in_place f v =
+  iteri
+    (fun i x -> Array.unsafe_set v.vec i (f x))
+    v
+
+(*$QR
+  Q.(pair (fun1 Observable.int small_int) (small_list small_int)) (fun (Q.Fun (_,f),l) ->
+    let v = of_list l in
+    map_in_place f v;
+    to_list v = List.map f l)
 *)
 
 let filter' p v =
@@ -470,20 +521,33 @@ let filter' p v =
     to_list v = [1;2;3]
 *)
 
+(*$QR
+  Q.(pair (fun1 Observable.int bool) (small_list small_int)) (fun (Q.Fun (_,f),l) ->
+    let v = of_list l in
+    filter' f v;
+    to_list v = List.filter f l)
+*)
+
 let filter p v =
-  if array_is_empty_ v
-  then create ()
-  else (
+  if array_is_empty_ v then (
+    create ()
+  ) else (
     let v' = create_with ~capacity:v.size v.vec.(0) in
-    Array.iter
+    iter
       (fun x -> if p x then push_unsafe_ v' x)
-      v.vec;
+      v;
     v'
   )
 
 (*$T
   filter (fun x-> x mod 2=0) (of_list [1;2;3;4;5]) |> to_list = [2;4]
   filter (fun x-> x mod 2=0) (1 -- 1_000_000) |> length = 500_000
+*)
+
+(*$QR
+  Q.(pair (fun1 Observable.int bool) (small_list small_int)) (fun (Q.Fun (_,f),l) ->
+    let v = of_list l in
+    to_list (filter f v) = List.filter f l)
 *)
 
 let fold f acc v =
@@ -499,12 +563,24 @@ let fold f acc v =
   fold (+) 0 (create ()) = 0
 *)
 
+(*$QR
+  Q.(pair (fun2 Observable.int Observable.int small_int) (small_list small_int)) (fun (Q.Fun (_,f),l) ->
+    let v = of_list l in
+    fold f 0 v = List.fold_left f 0 l)
+*)
+
 let exists p v =
   let n = v.size in
   let rec check i =
     if i = n then false
     else p v.vec.(i) || check (i+1)
   in check 0
+
+(*$QR
+  Q.(pair (fun1 Observable.int bool) (small_list small_int)) (fun (Q.Fun (_,f),l) ->
+    let v = of_list l in
+    exists f v = List.exists f l)
+*)
 
 let for_all p v =
   let n = v.size in
@@ -513,22 +589,40 @@ let for_all p v =
     else p v.vec.(i) && check (i+1)
   in check 0
 
+(*$QR
+  Q.(pair (fun1 Observable.int bool) (small_list small_int)) (fun (Q.Fun (_,f),l) ->
+    let v = of_list l in
+    for_all f v = List.for_all f l)
+*)
+
 let member ~eq x v =
   exists (eq x) v
 
-let find_exn p v =
+let find_internal_ p v =
   let n = v.size in
   let rec check i =
-    if i = n then raise Not_found
-    else
+    if i = n then raise_notrace Not_found
+    else (
       let x = v.vec.(i) in
       if p x then x
       else check (i+1)
+    )
   in check 0
 
+let find_exn p v =
+  try find_internal_ p v
+  with Not_found ->
+    raise Not_found
+
 let find p v =
-  try Some (find_exn p v)
+  try Some (find_internal_ p v)
   with Not_found -> None
+
+(*$QR
+  Q.(pair (fun1 Observable.int bool) (small_list small_int)) (fun (Q.Fun (_,f),l) ->
+    let v = of_list l in
+    find f v = CCList.find_pred f l)
+*)
 
 let find_map f v =
   let n = v.size in
@@ -552,9 +646,38 @@ let filter_map f v =
   iter
     (fun x -> match f x with
        | None -> ()
-       | Some y -> push v' y
-    ) v;
+       | Some y -> push v' y)
+    v;
   v'
+
+(*$QR
+  Q.(pair (fun1 Observable.int (option bool)) (small_list small_int)) (fun (Q.Fun (_,f),l) ->
+    let v = of_list l in
+    to_list (filter_map f v) = CCList.filter_map f l)
+*)
+
+let filter_map_in_place f v =
+  let i = ref 0 in (* cur element *)
+  let j = ref 0 in  (* cur insertion point *)
+  let n = v.size in
+  while !i < n do
+    match f v.vec.(!i) with
+      | None -> incr i (* drop *)
+      | Some y ->
+        (* move element i at the first empty slot.
+           invariant: i >= j*)
+        v.vec.(!j) <- y;
+        incr i;
+        incr j
+  done;
+  v.size <- !j
+
+(*$QR
+  Q.(pair (fun1 Observable.int (option small_int)) (small_list small_int)) (fun (Q.Fun (_,f),l) ->
+    let v = of_list l in
+    filter_map_in_place f v;
+    to_list v = CCList.filter_map f l)
+*)
 
 let flat_map f v =
   let v' = create () in
@@ -566,8 +689,8 @@ let flat_map_seq f v =
   iter
     (fun x ->
        let seq = f x in
-       append_seq v' seq;
-    ) v;
+       append_seq v' seq)
+    v;
   v'
 
 let flat_map_list f v =
@@ -575,8 +698,8 @@ let flat_map_list f v =
   iter
     (fun x ->
        let l = f x in
-       append_list v' l;
-    ) v;
+       append_list v' l)
+    v;
   v'
 
 let (>>=) x f = flat_map f x
@@ -596,6 +719,13 @@ let rev_in_place v =
     done
   )
 
+(*$QR
+  Q.(small_list small_int) (fun l ->
+    let v = of_list l in
+    rev_in_place v;
+    to_list v = List.rev l)
+*)
+
 let rev v =
   let v' = copy v in
   rev_in_place v';
@@ -607,9 +737,16 @@ let rev v =
   rev (create ()) |> to_list = []
 *)
 
+(*$QR
+  Q.(small_list small_int) (fun l ->
+    let v = of_list l in
+    to_list (rev v) = List.rev l)
+*)
+
 let rev_iter f v =
-  for i = v.size-1 downto 0 do
-    f v.vec.(i)
+  let n = v.size in
+  for i = n-1 downto 0 do
+    f (Array.unsafe_get v.vec i)
   done
 
 (*$T
@@ -641,7 +778,8 @@ let of_seq ?(init=create ()) seq =
 let to_seq v k = iter k v
 
 let to_seq_rev v k =
-  for i = v.size - 1 downto 0 do
+  let n = v.size in
+  for i = n - 1 downto 0 do
     k (Array.unsafe_get v.vec i)
   done
 
@@ -704,8 +842,10 @@ let of_array a =
 
 let of_list l = match l with
   | [] -> create()
+  | [x] -> return x
+  | [x;y] -> {size=2; vec=[| x; y |]}
   | x::_ ->
-    let v = create_with ~capacity:(List.length l + 5) x in
+    let v = create_with ~capacity:(List.length l) x in
     List.iter (push_unsafe_ v) l;
     v
 
