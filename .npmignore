@@ -3,3 +3,4 @@
 lib/bs
 mksrc.sh
 ocaml-containers
+uchar
